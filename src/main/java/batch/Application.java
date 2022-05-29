@@ -1,38 +1,68 @@
 package batch;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.spark.SparkConf;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class Application {
-    protected JavaSparkContext sc;
+    protected SparkSession ss;
     protected String dataSource;
 
-    public Application(JavaSparkContext sc, String dataSource){
-        this.sc = sc;
+    public Application(SparkSession ss, String dataSource){
+        this.ss = ss;
         this.dataSource = dataSource;
     }
 
-    private JavaRDD<String> preprocessing(){
-        return this.sc.parallelize(Arrays.asList(
-                "if you prick us do we not bleed",
-                "if you tickle us do we not laugh",
-                "if you poison us do we not die and",
-                "if you wrong us shall we not revenge"
-        ));
+    private Dataset<Row> load(ArrayList<String> locations) throws Exception {
+        Dataset<Row> dataset = null;
+        for(String path: locations) {
+            Dataset<Row> temp = this.ss.read().parquet(path);
+
+            if(dataset != null){
+                if(Arrays.equals(dataset.columns(), temp.columns()))
+                    dataset = dataset.union(temp);
+                else {
+                    throw new Exception("Incompatible columns");
+                }
+            }
+            else
+                dataset = temp;
+        }
+
+        return dataset;
+    }
+
+    private Dataset<Row> preprocessing(ArrayList<String> locations, ArrayList<String> usedColums) throws Exception {
+        //Check dataset
+        Dataset<Row> dataset = this.load(locations);
+        for(String c: dataset.columns()){
+            if(!usedColums.contains(c))
+                dataset = dataset.drop(c);
+        }
+
+        return dataset;
 
     }
 
-    public void test(){
-        JavaRDD<String> lines = this.preprocessing();
-        List<String> list = lines.collect();
+    public void test(ArrayList<String> usedColumns) throws Exception {
+        ArrayList<String> locations = new ArrayList<>();
+        locations.add("data/yellow_tripdata_2021-12.parquet");
+        locations.add("data/yellow_tripdata_2022-01.parquet");
+        locations.add("data/yellow_tripdata_2022-02.parquet");
 
-        for(String line: list){
-            System.out.println(line);
+        Dataset<Row> dataset = this.preprocessing(locations, usedColumns);
+        for (String c: dataset.columns()){
+            System.out.println(c);
         }
+
     }
 
     public static Application init(){
@@ -40,11 +70,9 @@ public class Application {
                 .setMaster("local")
                 .setAppName("TLC-batch-processing");
 
-        JavaSparkContext sc = new JavaSparkContext(conf);
-        sc.setLogLevel("ERROR");
+        SparkSession ss = SparkSession.builder().config(conf).getOrCreate();
 
-        String dataSource = "local";
-        return new Application(sc, dataSource);
-
+        String dataSource = "data";
+        return new Application(ss, dataSource);
     }
 }
