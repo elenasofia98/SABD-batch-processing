@@ -149,7 +149,7 @@ public class Application {
                 row)
         );
         by_month= by_month.cache();
-
+        by_month.collect();
 
         //TODO
         // Query 1.1: Average # of passengers by month
@@ -201,7 +201,7 @@ public class Application {
 
     public static Application init(){
         SparkConf conf = new SparkConf()
-                .setMaster("local")
+                .setMaster("spark://spark:7077")
                 .setAppName("TLC-batch-processing");
 
         SparkSession ss = SparkSession.builder().config(conf).getOrCreate();
