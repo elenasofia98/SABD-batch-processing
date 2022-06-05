@@ -1,9 +1,11 @@
 import batch.Application;
 import batch.ClusterConf;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 
 public class TLCMain {
 
@@ -38,9 +40,8 @@ public class TLCMain {
             Dataset<Row> dataset = app.preprocessing(filenames, usedColumns);
             dataset.show();
 
-
-            // get mapping between columns and Row indexes
-            /*Hashtable<String, Integer> columns = new Hashtable<>(); //passenger_count|tip_amount| tolls_amount |total_amount |month
+            // get mapping between columnes and Row indexes
+            Hashtable<String, Integer> columns = new Hashtable<>(); //passenger_count|tip_amount| tolls_amount |total_amount |month
             int i = 0;
             for(String c: dataset.columns()){
                 columns.put(c, i);
@@ -49,7 +50,6 @@ public class TLCMain {
 
             JavaRDD<Row> rdd = dataset.toJavaRDD();
             app.query1(rdd, columns);
-            */
 
         } catch (Exception e) {
             System.out.println(e.getMessage());

@@ -55,15 +55,15 @@ services:
     env_file:
       - /home/elena/IdeaProjects/SABD-batch-processing/docker-hadoop-master/hadoop.env
 
-  datanode:
+  datanode-1:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-    container_name: datanode
+    container_name: datanode-1
     restart: always
     volumes:
-      - /home/elena/IdeaProjects/SABD-batch-processing/hadoop/hadoop_datanode:/hadoop/dfs/data
-      - /home/elena/IdeaProjects/SABD-batch-processing/data:/input
+      - /home/elena/IdeaProjects/SABD-batch-processing/hadoop/hadoop_datanode-1:/hadoop/dfs/data
     environment:
       SERVICE_PRECONDITION: "namenode:9870"
     env_file:
       - /home/elena/IdeaProjects/SABD-batch-processing/docker-hadoop-master/hadoop.env
+
 
