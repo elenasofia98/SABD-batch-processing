@@ -4,7 +4,6 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.sql.*;
 import org.apache.spark.api.java.JavaRDD;
-import scala.Int;
 import scala.Tuple2;
 
 import java.util.*;
@@ -13,17 +12,29 @@ import static org.apache.spark.sql.functions.*;
 
 public class Application {
     protected SparkSession ss;
-    protected String dataSource;
+    protected String hdfs;
 
-    public Application(SparkSession ss, String dataSource){
-        this.ss = ss;
-        this.dataSource = dataSource;
+
+
+    public static Application init(ClusterConf clusterConf){
+        SparkConf conf = new SparkConf()
+                .setMaster("spark://"+clusterConf.getSparkIP()+":"+clusterConf.getSparkPort())
+                .setAppName("TLC-batch-processing");
+
+        SparkSession ss = SparkSession.builder().config(conf).getOrCreate();
+
+        return new Application(ss, clusterConf.getHdfsIP(), clusterConf.getHdfsPort());
     }
 
-    private Dataset<Row> load(ArrayList<String> locations) throws Exception {
+    public Application(SparkSession ss, String ip, String port){
+        this.ss = ss;
+        this.hdfs = "hdfs://"+ip+":"+port;
+    }
+
+    private Dataset<Row> load(ArrayList<String> paths) throws Exception {
         Dataset<Row> dataset = null;
-        for(String path: locations) {
-            Dataset<Row> temp = this.ss.read().parquet(path);
+        for(String path: paths) {
+            Dataset<Row> temp = this.ss.read().parquet(this.hdfs+path);
 
             if(dataset != null){
                 if(Arrays.equals(dataset.columns(), temp.columns()))
@@ -41,9 +52,9 @@ public class Application {
     }
 
 
-    public Dataset<Row> preprocessing(ArrayList<String> locations, ArrayList<String> usedColumns) throws Exception {
+    public Dataset<Row> preprocessing(ArrayList<String> pahts, ArrayList<String> usedColumns) throws Exception {
 
-        Dataset<Row> dataset = this.load(locations);
+        Dataset<Row> dataset = this.load(pahts);
         for(String c: dataset.columns()){
             // System.out.println(c);
             if(!usedColumns.contains(c))
@@ -53,7 +64,6 @@ public class Application {
         //dataset = new DataFrameNaFunctions(dataset).drop();
 
         // tip_amount(double)| tolls_amount(double)|total_amount(double) |month (int)
-
         dataset = dataset
                 .withColumn("date",
                         date_format(dataset.col("tpep_dropoff_datetime"), "yyyy/MM/dd"))
@@ -148,16 +158,16 @@ public class Application {
                 ((String)row.get(columns.get("date"))),
                 row)
         );
-        by_month= by_month.cache();
+        //by_month= by_month.cache();
         by_month.collect();
 
         //TODO
         // Query 1.1: Average # of passengers by month
-        JavaPairRDD<String, Integer> passengers_by_month = by_month
+        /*JavaPairRDD<String, Integer> passengers_by_month = by_month
                 .mapToPair(integerRowTuple2 ->
                         new Tuple2<>(
                                 integerRowTuple2._1().substring(5,7),
-                                0
+                                (int) integerRowTuple2._2().get(columns.get("passenger_count"))
                         )
                 )
                 .reduceByKey(Integer::sum);
@@ -165,14 +175,15 @@ public class Application {
         Map<String, Integer> counts = passengers_by_month.collectAsMap();
         for (String k: counts.keySet()){
             System.out.println("key" + k +": "+counts.get(k));
-        }
+        }*/
 
 
         // Query 1.2: Ratio
+
         JavaPairRDD<String, Row> valid = by_month
                 .filter(stringRowTuple2 ->
                         ((double)stringRowTuple2._2.get(columns.get("total_amount")) - (double)stringRowTuple2._2.get(columns.get("tolls_amount")) !=0));
-        valid = valid.cache();
+        valid.take(10).forEach(System.out::println);
 
 
         Map<String, Double> sum_ratio_by_month = valid
@@ -187,7 +198,6 @@ public class Application {
                 .collectAsMap();
 
 
-
         Map<String, Integer> denominator = valid
                         .mapToPair(stringRowTuple2 ->
                         new Tuple2<>(
@@ -196,17 +206,8 @@ public class Application {
                 )
                 .reduceByKey(Integer::sum)
                 .collectAsMap();
+
     }
 
 
-    public static Application init(){
-        SparkConf conf = new SparkConf()
-                .setMaster("spark://spark:7077")
-                .setAppName("TLC-batch-processing");
-
-        SparkSession ss = SparkSession.builder().config(conf).getOrCreate();
-
-        String dataSource = "data";
-        return new Application(ss, dataSource);
-    }
 }

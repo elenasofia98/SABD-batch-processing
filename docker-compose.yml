@@ -18,7 +18,7 @@ services:
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark:7077
-      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_MEMORY=1G
       - SPARK_WORKER_CORES=1
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_RPC_ENCRYPTION_ENABLED=no
@@ -31,7 +31,7 @@ services:
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark:7077
-      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_MEMORY=1G
       - SPARK_WORKER_CORES=1
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_RPC_ENCRYPTION_ENABLED=no
@@ -39,3 +39,31 @@ services:
       - SPARK_SSL_ENABLED=no
     volumes:
       - /home/elena/IdeaProjects/SABD-batch-processing:/app
+
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: always
+    ports:
+      - 9870:9870
+      - 9000:9000
+    volumes:
+      - /home/elena/IdeaProjects/SABD-batch-processing/hadoop/hadoop_namenode:/hadoop/dfs/name
+      - /home/elena/IdeaProjects/SABD-batch-processing/data:/input
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - /home/elena/IdeaProjects/SABD-batch-processing/docker-hadoop-master/hadoop.env
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    restart: always
+    volumes:
+      - /home/elena/IdeaProjects/SABD-batch-processing/hadoop/hadoop_datanode:/hadoop/dfs/data
+      - /home/elena/IdeaProjects/SABD-batch-processing/data:/input
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - /home/elena/IdeaProjects/SABD-batch-processing/docker-hadoop-master/hadoop.env
+
