@@ -54,6 +54,8 @@ public class TLCMain {
             System.out.println("---------->Duration in millis: " + (end - start));
 
 
+
+            app.close();
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }

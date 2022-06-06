@@ -86,18 +86,14 @@ public class Application {
 
 
     public void query1(JavaRDD<TaxiRoute> rdd){
-        // Query 1: Averages on monthly basis
-        JavaPairRDD<String, TaxiRoute> by_month  = rdd
-                .mapToPair(route -> new Tuple2<>(
-                        route.date.substring(5,7),
-                        route)
-        );
-
         // Query 1
         // Ratio
-        JavaPairRDD<String, Double> valid = by_month
-                .filter(routeTuple -> routeTuple._2.payment_type == 1)
-                .mapValues(route -> route.tip_amount / (route.total_amount - route.tolls_amount))
+        JavaPairRDD<String, Double> valid = rdd
+                .filter(route -> route.payment_type == 1)
+                .mapToPair(route -> new Tuple2<>(
+                        route.date.substring(5,7),
+                        route.tip_amount / (route.total_amount - route.tolls_amount)
+                ))
                 .filter(stringDoubleTuple -> !Double.isNaN(stringDoubleTuple._2));
         valid = valid.cache();
 
@@ -118,9 +114,13 @@ public class Application {
             System.out.println("------>key " + k +": "+denominator.get(k));
         }
 
-
         // save to HDFS
 
+
+    }
+
+    public void close(){
+        this.ss.close();
     }
 
 
