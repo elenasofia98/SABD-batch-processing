@@ -1,9 +1,13 @@
 import batch.Application;
 import batch.ClusterConf;
+import batch.TaxiRoute;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Hashtable;
 
@@ -18,11 +22,12 @@ public class TLCMain {
         Application app = Application.init(new ClusterConf(hdfsIP, hdfsPort, sparkIP, sparkPort));
         ArrayList<String> usedColumns = new ArrayList<>();
         //usedColumns.add("tpep_pickup_datetime");
-        usedColumns.add("passenger_count");
+        //usedColumns.add("passenger_count");
         usedColumns.add("tpep_dropoff_datetime");
         usedColumns.add("tip_amount");
         usedColumns.add("total_amount");
         usedColumns.add("tolls_amount");
+        usedColumns.add("payment_type");
 
         //"fare_amount"
         //"extra"
@@ -37,19 +42,17 @@ public class TLCMain {
 
 
         try {
-            Dataset<Row> dataset = app.preprocessing(filenames, usedColumns);
+            Dataset<TaxiRoute> dataset = app.load(filenames, usedColumns);
             dataset.show();
 
-            // get mapping between columnes and Row indexes
-            Hashtable<String, Integer> columns = new Hashtable<>(); //passenger_count|tip_amount| tolls_amount |total_amount |month
-            int i = 0;
-            for(String c: dataset.columns()){
-                columns.put(c, i);
-                i +=1;
-            }
+            JavaRDD<TaxiRoute> rdd = dataset.toJavaRDD();
+            rdd.take(10).forEach(System.out::println);
 
-            JavaRDD<Row> rdd = dataset.toJavaRDD();
-            app.query1(rdd, columns);
+            long start = System.currentTimeMillis();
+            app.query1(rdd);
+            long end = System.currentTimeMillis();
+            System.out.println("---------->Duration in millis: " + (end - start));
+
 
         } catch (Exception e) {
             System.out.println(e.getMessage());

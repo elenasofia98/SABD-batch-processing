@@ -2,10 +2,10 @@ package batch;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.function.FilterFunction;
 import org.apache.spark.sql.*;
 import org.apache.spark.api.java.JavaRDD;
 import scala.Tuple2;
+import scala.collection.Seq;
 
 import java.util.*;
 
@@ -32,7 +32,7 @@ public class Application {
         this.hdfs = "hdfs://"+ip+":"+port;
     }
 
-    private Dataset<Row> load(ArrayList<String> paths) throws Exception {
+    private Dataset<Row> load_parquet(ArrayList<String> paths) throws Exception {
         Dataset<Row> dataset = null;
         for(String path: paths) {
             Dataset<Row> temp = this.ss.read().parquet(this.hdfs+path);
@@ -53,18 +53,17 @@ public class Application {
     }
 
 
-    public Dataset<Row> preprocessing(ArrayList<String> pahts, ArrayList<String> usedColumns) throws Exception {
+    public Dataset<TaxiRoute> load(ArrayList<String> pahts, ArrayList<String> usedColumns) throws Exception {
 
-        Dataset<Row> dataset = this.load(pahts);
+        Dataset<Row> dataset = this.load_parquet(pahts);
         for(String c: dataset.columns()){
-            // System.out.println(c);
+            //System.out.println(c);
             if(!usedColumns.contains(c))
                 dataset = dataset.drop(c);
         }
 
         //System.out.println("------>total " + dataset.count());
-        dataset = dataset
-                .filter((FilterFunction<Row>) row -> ! row.anyNull());
+        //dataset = dataset.filter((FilterFunction<Row>) row -> ! row.anyNull());
         //System.out.println("------>not null " + dataset.count());
 
         dataset = dataset
@@ -75,67 +74,34 @@ public class Application {
 
         // tip_amount(double)| tolls_amount(double)|total_amount(double) |month (int)
         dataset = dataset
-                .withColumn("passenger_count", dataset.col("passenger_count").cast("int"))
+                .withColumn("payment_type", dataset.col("payment_type").cast("long"))
+                //.withColumn("passenger_count", dataset.col("passenger_count").cast("int"))
                 .withColumn("tip_amount", dataset.col("tip_amount").cast("double"))
                 .withColumn("tolls_amount", dataset.col("tolls_amount").cast("double"))
                 .withColumn("total_amount", dataset.col("total_amount").cast("double"));
 
-        return dataset;
+        return dataset.as(Encoders.bean(TaxiRoute.class));
     }
 
 
 
-    public void query1(JavaRDD<Row> rdd, Hashtable<String, Integer> columns){
+    public void query1(JavaRDD<TaxiRoute> rdd){
         // Query 1: Averages on monthly basis
-        JavaPairRDD<String, Row> by_month  = rdd.mapToPair(row -> new Tuple2<>(
-                ((String)row.get(columns.get("date"))).substring(5,7),
-                row)
+        JavaPairRDD<String, TaxiRoute> by_month  = rdd
+                .mapToPair(route -> new Tuple2<>(
+                        route.date.substring(5,7),
+                        route)
         );
-        by_month= by_month.cache();
 
-        // Query 1.1: Average # of passengers by month
-        JavaPairRDD<String, Integer> passengers_by_month = by_month
-                .mapToPair(integerRowTuple2 ->
-                        new Tuple2<>(
-                                integerRowTuple2._1(),
-                                (int) integerRowTuple2._2().get(columns.get("passenger_count"))
-                        )
-                );
-
-        Map<String, Integer> counts = passengers_by_month.reduceByKey(Integer::sum).collectAsMap();
-        for (String k: counts.keySet()){
-            System.out.println("------>key " + k +": "+counts.get(k));
-        }
-
-        JavaPairRDD<String, Integer> den_passengers_by_month = by_month
-                .mapToPair(integerRowTuple2 ->
-                        new Tuple2<>(
-                                integerRowTuple2._1(),
-                                1
-                        )
-                );
-        //passengers_by_month.take(10).forEach(System.out::println);
-        Map<String, Integer> den_counts = den_passengers_by_month.reduceByKey(Integer::sum).collectAsMap();
-        for (String k: den_counts.keySet()){
-            System.out.println("------>key " + k +": "+den_counts.get(k));
-        }
-
-
-
-        // Query 1.2: Ratio
-        JavaPairRDD<String, Row> valid = by_month
-                .filter(stringRowTuple2 ->
-                        ((double)stringRowTuple2._2.get(columns.get("total_amount")) - (double)stringRowTuple2._2.get(columns.get("tolls_amount")) !=0));
-        valid.take(10).forEach(System.out::println);
+        // Query 1
+        // Ratio
+        JavaPairRDD<String, Double> valid = by_month
+                .filter(routeTuple -> routeTuple._2.payment_type == 1)
+                .mapValues(route -> route.tip_amount / (route.total_amount - route.tolls_amount))
+                .filter(stringDoubleTuple -> !Double.isNaN(stringDoubleTuple._2));
+        valid = valid.cache();
 
         Map<String, Double> sum_ratio_by_month = valid
-                .mapToPair(stringRowTuple2 ->
-                        new Tuple2<>(
-                                stringRowTuple2._1(),
-                                (double) stringRowTuple2._2().get(columns.get("tip_amount")) /
-                                ((double)stringRowTuple2._2().get(columns.get("total_amount")) - (double)stringRowTuple2._2().get(columns.get("tolls_amount")))
-                        )
-                )
                 .reduceByKey(Double::sum)
                 .collectAsMap();
 
@@ -144,17 +110,16 @@ public class Application {
         }
 
         Map<String, Integer> denominator = valid
-                        .mapToPair(stringRowTuple2 ->
-                        new Tuple2<>(
-                                stringRowTuple2._1(),
-                                1)
-                )
+                .mapValues(row -> 1)
                 .reduceByKey(Integer::sum)
                 .collectAsMap();
 
         for (String k: denominator.keySet()){
-            System.out.println("------>key " + k +": "+sum_ratio_by_month.get(k));
+            System.out.println("------>key " + k +": "+denominator.get(k));
         }
+
+
+        // save to HDFS
 
     }
 
