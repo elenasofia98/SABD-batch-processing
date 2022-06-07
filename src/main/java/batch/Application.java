@@ -67,10 +67,11 @@ public class Application {
         //System.out.println("------>not null " + dataset.count());
 
         dataset = dataset
-                .withColumn("date",
+                .withColumn("tpep_dropoff_datetime",
                         date_format(dataset.col("tpep_dropoff_datetime"), "yyyy/MM/dd"))
-                .filter(col("date").gt(lit("2021/11/30")).and(col("date").lt(lit("2022/03/01"))))
-                .drop("tpep_dropoff_datetime");
+                .filter(col("tpep_dropoff_datetime").gt(lit("2021/11/31"))
+                        .and(col("tpep_dropoff_datetime").lt(lit("2022/03/01"))));
+                //.drop("tpep_dropoff_datetime");
 
         // tip_amount(double)| tolls_amount(double)|total_amount(double) |month (int)
         dataset = dataset
@@ -91,7 +92,7 @@ public class Application {
         JavaPairRDD<String, Double> valid = rdd
                 .filter(route -> route.payment_type == 1)
                 .mapToPair(route -> new Tuple2<>(
-                        route.date.substring(5,7),
+                        route.tpep_dropoff_datetime.substring(5,7),
                         route.tip_amount / (route.total_amount - route.tolls_amount)
                 ))
                 .filter(stringDoubleTuple -> !Double.isNaN(stringDoubleTuple._2));
@@ -114,10 +115,17 @@ public class Application {
             System.out.println("------>key " + k +": "+denominator.get(k));
         }
 
+        //TODO
         // save to HDFS
 
 
     }
+
+    public void query2(JavaRDD<TaxiRoute> rdd) {
+
+
+    }
+
 
     public void close(){
         this.ss.close();

@@ -23,11 +23,16 @@ public class TLCMain {
         ArrayList<String> usedColumns = new ArrayList<>();
         //usedColumns.add("tpep_pickup_datetime");
         //usedColumns.add("passenger_count");
+
+        //query 1
         usedColumns.add("tpep_dropoff_datetime");
         usedColumns.add("tip_amount");
         usedColumns.add("total_amount");
         usedColumns.add("tolls_amount");
         usedColumns.add("payment_type");
+
+        //query 2
+
 
         //"fare_amount"
         //"extra"
@@ -46,14 +51,26 @@ public class TLCMain {
             dataset.show();
 
             JavaRDD<TaxiRoute> rdd = dataset.toJavaRDD();
+            rdd = rdd.cache();
             rdd.take(10).forEach(System.out::println);
 
             long start = System.currentTimeMillis();
+            /*Per ogni mese solare, calcolare la percentuale media dell’importo della mancia rispetto al costo effettivo
+            * della corsa. Calcolare il costo effettivo della corsa come differenza tra Total amount e Tolls amount
+            * ed includere soltanto i pagamenti effettuati con carta di credito. Nell’output indicare anche il numero
+            * totale di corse usate per calcolare il valore medio*/
             app.query1(rdd);
             long end = System.currentTimeMillis();
             System.out.println("---------->Duration in millis: " + (end - start));
 
-
+            /*
+            * Per ogni ora, calcolare la distribuzione in percentuale del numero di corse rispetto alle zone di partenza
+            * (campo PULocationID), la mancia media e la sua deviazione standard, il metodo di pagamento piu`diffuso.
+            * */
+            start = System.currentTimeMillis();
+            app.query2(rdd);
+            end = System.currentTimeMillis();
+            System.out.println("---------->Duration in millis: " + (end - start));
 
             app.close();
         } catch (Exception e) {

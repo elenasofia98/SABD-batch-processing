@@ -8,28 +8,28 @@ public class TaxiRoute  implements Serializable {
     public double total_amount;
     public double tolls_amount;
     public long payment_type;
-    public String date;
+    public String tpep_dropoff_datetime;
 
     public TaxiRoute(){}
 
-    public TaxiRoute(double tip_amount, double total_amount, double tolls_amount, long payment_type, String date) {
+    public TaxiRoute(double tip_amount, double total_amount, double tolls_amount, long payment_type, String tpep_dropoff_datetime) {
         this.payment_type = payment_type;
 
         this.tip_amount = tip_amount;
         this.tolls_amount = tolls_amount;
         this.total_amount = total_amount;
 
-        this.date = date;
+        this.tpep_dropoff_datetime = tpep_dropoff_datetime;
     }
 
     @Override
     public String toString() {
         return "TaxiRoute{" +
-                ", tip_amount=" + tip_amount +
+                " tip_amount=" + tip_amount +
                 ", total_amount=" + total_amount +
                 ", tolls_amount=" + tolls_amount +
                 ", payment_type=" + payment_type +
-                ", date='" + date + '\'' +
+                ", tpep_dropoff_datetime='" + tpep_dropoff_datetime + '\'' +
                 '}';
     }
 
@@ -65,11 +65,11 @@ public class TaxiRoute  implements Serializable {
         this.payment_type = payment_type;
     }
 
-    public String getDate() {
-        return date;
+    public String getTpep_dropoff_datetime() {
+        return tpep_dropoff_datetime;
     }
 
-    public void setDate(String date) {
-        this.date = date;
+    public void setTpep_dropoff_datetime(String date) {
+        this.tpep_dropoff_datetime = date;
     }
 }
