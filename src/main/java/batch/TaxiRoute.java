@@ -10,9 +10,29 @@ public class TaxiRoute  implements Serializable {
     public long payment_type;
     public String tpep_dropoff_datetime;
 
+    public String tpep_pickup_datetime;
+    public long PULocationID;
+
+    public String getTpep_pickup_datetime() {
+        return tpep_pickup_datetime;
+    }
+
+    public void setTpep_pickup_datetime(String tpep_pickup_datetime) {
+        this.tpep_pickup_datetime = tpep_pickup_datetime;
+    }
+
+    public long getPULocationID() {
+        return PULocationID;
+    }
+
+    public void setPULocationID(long PULocationID) {
+        this.PULocationID = PULocationID;
+    }
+
     public TaxiRoute(){}
 
-    public TaxiRoute(double tip_amount, double total_amount, double tolls_amount, long payment_type, String tpep_dropoff_datetime) {
+    public TaxiRoute(double tip_amount, double total_amount, double tolls_amount, long payment_type,
+                     String tpep_dropoff_datetime, String tpep_pickup_datetime, long PULocationID) {
         this.payment_type = payment_type;
 
         this.tip_amount = tip_amount;
@@ -20,16 +40,21 @@ public class TaxiRoute  implements Serializable {
         this.total_amount = total_amount;
 
         this.tpep_dropoff_datetime = tpep_dropoff_datetime;
+        this.tpep_pickup_datetime = tpep_pickup_datetime;
+
+        this.PULocationID = PULocationID;
     }
 
     @Override
     public String toString() {
         return "TaxiRoute{" +
-                " tip_amount=" + tip_amount +
+                "tip_amount=" + tip_amount +
                 ", total_amount=" + total_amount +
                 ", tolls_amount=" + tolls_amount +
                 ", payment_type=" + payment_type +
                 ", tpep_dropoff_datetime='" + tpep_dropoff_datetime + '\'' +
+                ", tpep_pickup_datetime='" + tpep_pickup_datetime + '\'' +
+                ", PULocationID=" + PULocationID +
                 '}';
     }
 

@@ -2,14 +2,18 @@ import batch.Application;
 import batch.ClusterConf;
 import batch.TaxiRoute;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
+import scala.Function1;
+import scala.collection.immutable.Seq;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.TreeSet;
 
 public class TLCMain {
 
@@ -32,13 +36,10 @@ public class TLCMain {
         usedColumns.add("payment_type");
 
         //query 2
+        usedColumns.add("tpep_pickup_datetime");
+        usedColumns.add("PULocationID");
 
 
-        //"fare_amount"
-        //"extra"
-        //"improvement_surcharge"
-        //"mta_tax"
-        //"congestion_surcharge"
         //"airport_fee"
         ArrayList<String> filenames = new ArrayList<>();
         filenames.add("/input/yellow_tripdata_2021-12.parquet");
@@ -48,10 +49,11 @@ public class TLCMain {
 
         try {
             Dataset<TaxiRoute> dataset = app.load(filenames, usedColumns);
+            dataset = dataset.cache();
             dataset.show();
 
             JavaRDD<TaxiRoute> rdd = dataset.toJavaRDD();
-            rdd = rdd.cache();
+            rdd.cache();
             rdd.take(10).forEach(System.out::println);
 
             long start = System.currentTimeMillis();

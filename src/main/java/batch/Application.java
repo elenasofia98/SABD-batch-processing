@@ -68,10 +68,12 @@ public class Application {
 
         dataset = dataset
                 .withColumn("tpep_dropoff_datetime",
-                        date_format(dataset.col("tpep_dropoff_datetime"), "yyyy/MM/dd"))
+                        date_format(dataset.col("tpep_dropoff_datetime"), "yyyy/MM/dd hh:mm"))
                 .filter(col("tpep_dropoff_datetime").gt(lit("2021/11/31"))
-                        .and(col("tpep_dropoff_datetime").lt(lit("2022/03/01"))));
-                //.drop("tpep_dropoff_datetime");
+                        .and(col("tpep_dropoff_datetime").lt(lit("2022/03/01"))))
+                .withColumn("tpep_pickup_datetime",
+                        date_format(dataset.col("tpep_pickup_datetime"), "yyyy/MM/dd hh:mm"))
+                .filter(col("tpep_pickup_datetime").lt(lit("2022/03/01")));
 
         // tip_amount(double)| tolls_amount(double)|total_amount(double) |month (int)
         dataset = dataset
@@ -79,7 +81,8 @@ public class Application {
                 //.withColumn("passenger_count", dataset.col("passenger_count").cast("int"))
                 .withColumn("tip_amount", dataset.col("tip_amount").cast("double"))
                 .withColumn("tolls_amount", dataset.col("tolls_amount").cast("double"))
-                .withColumn("total_amount", dataset.col("total_amount").cast("double"));
+                .withColumn("total_amount", dataset.col("total_amount").cast("double"))
+                .withColumn("PULocationID", dataset.col("PULocationID").cast("long"));
 
         return dataset.as(Encoders.bean(TaxiRoute.class));
     }
@@ -90,12 +93,12 @@ public class Application {
         // Query 1
         // Ratio
         JavaPairRDD<String, Double> valid = rdd
-                .filter(route -> route.payment_type == 1)
+                .filter(route -> route.payment_type == 1 && route.total_amount != 0)
                 .mapToPair(route -> new Tuple2<>(
                         route.tpep_dropoff_datetime.substring(5,7),
                         route.tip_amount / (route.total_amount - route.tolls_amount)
-                ))
-                .filter(stringDoubleTuple -> !Double.isNaN(stringDoubleTuple._2));
+                ));
+                //.filter(stringDoubleTuple -> !Double.isNaN(stringDoubleTuple._2));
         valid = valid.cache();
 
         Map<String, Double> sum_ratio_by_month = valid
