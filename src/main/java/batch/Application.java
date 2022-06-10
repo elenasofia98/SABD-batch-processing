@@ -2,10 +2,10 @@ package batch;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.function.FilterFunction;
 import org.apache.spark.sql.*;
 import org.apache.spark.api.java.JavaRDD;
 import scala.Tuple2;
-import scala.collection.Seq;
 
 import java.util.*;
 
@@ -63,7 +63,7 @@ public class Application {
         }
 
         //System.out.println("------>total " + dataset.count());
-        //dataset = dataset.filter((FilterFunction<Row>) row -> ! row.anyNull());
+        dataset = dataset.filter((FilterFunction<Row>) row -> ! row.anyNull());
         //System.out.println("------>not null " + dataset.count());
 
         dataset = dataset
@@ -125,6 +125,52 @@ public class Application {
     }
 
     public void query2(JavaRDD<TaxiRoute> rdd) {
+        JavaPairRDD<String, TaxiRoute> base = JavaPairRDD.fromJavaRDD(rdd.flatMap(route -> {
+            List<Tuple2<String, TaxiRoute>> segments = new LinkedList<>();
+            for (String i : route.getAllHours()) {
+                segments.add(new Tuple2<>(
+                        i, route
+                ));
+            }
+            return segments.iterator();
+        }));
+        base = base.cache();
+        base.take(10).forEach(System.out::println);
+
+        JavaPairRDD<String, TaxiRoute> route_by_hour_pu = base
+                .mapToPair(routeTuple2 -> new Tuple2<>(
+                        routeTuple2._1 + "," + routeTuple2._2.PULocationID,
+                        routeTuple2._2
+                ));
+        route_by_hour_pu = route_by_hour_pu.cache();
+
+        Map<String, Integer> tot_by_hour = base
+                .mapValues(route -> 1)
+                .reduceByKey(Integer::sum)
+                .collectAsMap();
+
+
+        // Mean by hour
+        Map<String, Double> count_route_by_hour_pu = route_by_hour_pu
+                .mapToPair(routeTuple2 -> new Tuple2<>(
+                        routeTuple2._1.replace('/', '-').replace(' ', '-'),
+                        (double) 1 / tot_by_hour.get(routeTuple2._1.split(",")[0])
+                ))
+                .reduceByKey(Double::sum)
+                .collectAsMap();
+
+
+        for (String k: count_route_by_hour_pu.keySet()){
+            System.out.printf("------>key:%s;mean-value: %f\n", k, count_route_by_hour_pu.get(k));
+        }
+
+
+
+        /*base.mapToPair(routeTuple2 -> new Tuple2<>(
+                routeTuple2._2().PULocationID,
+                routeTuple2
+        )).take(10).forEach(System.out::println);*/
+
 
 
     }

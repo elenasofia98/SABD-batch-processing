@@ -1,6 +1,8 @@
 package batch;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.LinkedList;
 
 public class TaxiRoute  implements Serializable {
     //public int passenger_count;
@@ -56,6 +58,37 @@ public class TaxiRoute  implements Serializable {
                 ", tpep_pickup_datetime='" + tpep_pickup_datetime + '\'' +
                 ", PULocationID=" + PULocationID +
                 '}';
+    }
+
+    public LinkedList<String> getAllHours(){
+        LinkedList<String> hours =  new LinkedList<>();
+        int i;
+
+        int start = Integer.parseInt((this.tpep_pickup_datetime.substring(11, 13)));
+        int end = Integer.parseInt(this.tpep_dropoff_datetime.substring(11, 13));
+        String date = this.tpep_pickup_datetime;
+
+        if(start > end){
+            while (start < 24){
+                if(start < 10)
+                    hours.add(date.split(" ")[0] + " 0" + start);
+                else
+                    hours.add(date.split(" ")[0] + " " +start);
+
+                start +=1;
+            }
+            date = tpep_dropoff_datetime;
+        }
+
+        while (start <= end){
+            if(start < 10)
+                hours.add(date.split(" ")[0] + " 0" + start);
+            else
+                hours.add(date.split(" ")[0] + " " +start);
+
+            start +=1;
+        }
+        return hours;
     }
 
     public double getTip_amount() {

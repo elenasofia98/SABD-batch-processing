@@ -61,7 +61,7 @@ public class TLCMain {
             * della corsa. Calcolare il costo effettivo della corsa come differenza tra Total amount e Tolls amount
             * ed includere soltanto i pagamenti effettuati con carta di credito. Nell’output indicare anche il numero
             * totale di corse usate per calcolare il valore medio*/
-            app.query1(rdd);
+            //app.query1(rdd);
             long end = System.currentTimeMillis();
             System.out.println("---------->Duration in millis: " + (end - start));
 
