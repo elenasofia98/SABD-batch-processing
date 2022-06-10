@@ -125,22 +125,9 @@ public class Application {
 
     }
 
-    public void query2(JavaRDD<TaxiRoute> rdd) {
-        JavaPairRDD<String, TaxiRoute> base = JavaPairRDD.fromJavaRDD(rdd.flatMap(route -> {
-            List<Tuple2<String, TaxiRoute>> segments = new LinkedList<>();
-            for (String i : route.getAllHours()) {
-                segments.add(new Tuple2<>(
-                        i, route
-                ));
-            }
-            return segments.iterator();
-        }));
-        base = base.cache();
-        base.take(10).forEach(System.out::println);
-
-        //Query 2.1
-        // distribution over PULocation hour by hour
-        base.mapToPair(routeTuple2 -> new Tuple2<>(
+    private JavaPairRDD<String, ArrayList<Double>> sub1query2(JavaPairRDD<String, TaxiRoute> base){
+        return base
+                .mapToPair(routeTuple2 -> new Tuple2<>(
                         routeTuple2._1 //.replace('/', '-').replace(' ', '-')
                                 + "," + routeTuple2._2.PULocationID,
                         1))
@@ -157,74 +144,102 @@ public class Application {
                     );
                 })
                 .groupByKey()
-            .mapValues(tuples -> {
-            ArrayList<Double> result = new ArrayList<>();
-                for(int i = 0; i<265; i++){
-                    result.add(0d);
-                }
+                .mapValues(tuples -> {
+                    ArrayList<Double> result = new ArrayList<>();
+                    for(int i = 0; i<265; i++){
+                        result.add(0d);
+                    }
 
-                int n = 0;
-                Integer count;
-                for (Tuple2<Long, Integer> tuple : tuples) {
-                    count = tuple._2;
+                    int n = 0;
+                    Integer count;
+                    for (Tuple2<Long, Integer> tuple : tuples) {
+                        count = tuple._2;
 
-                    result.add( tuple._1.intValue() -1, count.doubleValue());
-                    n += count;
-                }
+                        result.add( tuple._1.intValue() - 1, count.doubleValue());
+                        n += count;
+                    }
 
-                for(int i = 0; i< result.size(); i ++){
-                    result.set(i, result.get(i)/n);
-                }
+                    for(int i = 0; i< result.size(); i ++){
+                        result.set(i, result.get(i)/n);
+                    }
 
-                return result;
-        })
-        .take(10).forEach(System.out::println);
+                    return result;
+                });
+    }
+
+    private void sub2query2(JavaPairRDD<String, TaxiRoute> base){
+        return;
+    }
 
 
-        // 2.2 Average and stard deviation tip
-        Map<String, Double> mean_tip_by_hour = base
+    private JavaPairRDD<String, Long> sub3query2(JavaPairRDD<String, TaxiRoute> base){
+        return base.mapToPair(routeTuple2 -> new Tuple2<>(
+                        routeTuple2._1 + ',' + routeTuple2._2.payment_type,
+                        1
+                ))
+                .reduceByKey(Integer::sum)
+                .mapToPair(stringIntegerTuple2 -> {
+                    String[] keys  = stringIntegerTuple2._1.split(",");
+                    return new Tuple2<>(
+                            keys[0],
+                            new Tuple2<Long, Integer>(
+                                    Long.valueOf(keys[1]),
+                                    stringIntegerTuple2._2
+                            )
+                    );
+                })
+                .reduceByKey((stringIntegerTuple1, stringIntegerTuple2) -> {
+                    if(stringIntegerTuple1._2 > stringIntegerTuple2._2){
+                        return stringIntegerTuple1;
+                    }
+                    else {
+                        return stringIntegerTuple2;
+                    }
+                })
+                .mapValues(stringIntegerTuple2 -> stringIntegerTuple2._1);
+    }
+
+    public void query2(JavaRDD<TaxiRoute> rdd) {
+        JavaPairRDD<String, TaxiRoute> base = JavaPairRDD.fromJavaRDD(rdd.flatMap(route -> {
+            List<Tuple2<String, TaxiRoute>> segments = new LinkedList<>();
+            for (String i : route.getAllHours()) {
+                segments.add(new Tuple2<>(
+                        i, route
+                ));
+            }
+            return segments.iterator();
+        }));
+        base = base.cache();
+        base.take(10).forEach(System.out::println);
+
+        // 2.1
+        // distribution over PULocation hour by hour
+        //JavaPairRDD<String, ArrayList<Double>> distribution = this.sub1query2(base);
+        //distribution.take(1).forEach(System.out::println);
+
+
+        // 2.2 Average and standard deviation tip
+        JavaPairRDD<String, Tuple2<Double, Integer>> tip_by_hour = base
                 .mapValues(route -> new Tuple2<>(
                         route.tip_amount,
                         1)
-                )
+                );
+        tip_by_hour = tip_by_hour.cache();
+
+        JavaPairRDD<String, Double> mean_tip_by_hour= tip_by_hour
                 .reduceByKey((doubleIntegerTuple2, doubleIntegerTuple22) -> new Tuple2<>(
                         Double.sum(doubleIntegerTuple2._1, doubleIntegerTuple22._1),
                         Integer.sum(doubleIntegerTuple2._2, doubleIntegerTuple22._2)
                 ))
-                .mapValues(doubleIntegerTuple2 -> (double) doubleIntegerTuple2._1 / doubleIntegerTuple2._2)
-                .collectAsMap();
+                .mapValues(doubleIntegerTuple2 -> (double) doubleIntegerTuple2._1 / doubleIntegerTuple2._2);
 
-        for (String k: mean_tip_by_hour.keySet()){
-            System.out.println("------>key " + k +": "+mean_tip_by_hour.get(k));
-        }
+        mean_tip_by_hour.cogroup(tip_by_hour).take(10).forEach(System.out::println);
+
 
         //2.3
         // Preferred payment type
-        base.mapToPair(routeTuple2 -> new Tuple2<>(
-                    routeTuple2._1 + ',' + routeTuple2._2.payment_type,
-                    1
-            ))
-            .reduceByKey(Integer::sum)
-            .mapToPair(stringIntegerTuple2 -> {
-                String[] keys  = stringIntegerTuple2._1.split(",");
-                return new Tuple2<>(
-                        keys[0],
-                        new Tuple2<Long, Integer>(
-                                Long.valueOf(keys[1]),
-                                stringIntegerTuple2._2
-                        )
-                );
-            })
-            .reduceByKey((stringIntegerTuple1, stringIntegerTuple2) -> {
-                if(stringIntegerTuple1._2 > stringIntegerTuple2._2){
-                    return stringIntegerTuple1;
-                }
-                else {
-                    return stringIntegerTuple2;
-                }
-            })
-            .mapValues(stringIntegerTuple2 -> stringIntegerTuple2._1)
-            .take(10).forEach(System.out::println);
+        //JavaPairRDD<String, Long> payment_type = this.sub3query2(base);
+        //payment_type.take(10).forEach(System.out::println);
 
 
         /*base.mapToPair(routeTuple2 -> new Tuple2<>(
