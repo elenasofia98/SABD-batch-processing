@@ -2,7 +2,6 @@ package batch;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.function.FilterFunction;
 import org.apache.spark.sql.*;
 import org.apache.spark.api.java.JavaRDD;
 import scala.Tuple2;
@@ -31,6 +30,8 @@ public class Application {
         this.ss = ss;
         this.hdfs = "hdfs://"+ip+":"+port;
     }
+
+    protected static final Comparator<String> comparator = new Query2Comparator();
 
     private Dataset<Row> load_parquet(ArrayList<String> paths) throws Exception {
         Dataset<Row> dataset = null;
@@ -63,7 +64,7 @@ public class Application {
         }
 
         //System.out.println("------>total " + dataset.count());
-        dataset = dataset.filter((FilterFunction<Row>) row -> ! row.anyNull());
+        //dataset = dataset.filter((FilterFunction<Row>) row -> ! row.anyNull());
         //System.out.println("------>not null " + dataset.count());
 
         dataset = dataset
@@ -73,7 +74,8 @@ public class Application {
                         .and(col("tpep_dropoff_datetime").lt(lit("2022/03/01"))))
                 .withColumn("tpep_pickup_datetime",
                         date_format(dataset.col("tpep_pickup_datetime"), "yyyy/MM/dd hh:mm"))
-                .filter(col("tpep_pickup_datetime").lt(lit("2022/03/01")));
+                .filter(col("tpep_pickup_datetime").gt(lit("2021/11/31"))
+                        .and(col("tpep_pickup_datetime").lt(lit("2022/03/01"))));
 
         // tip_amount(double)| tolls_amount(double)|total_amount(double) |month (int)
         dataset = dataset
@@ -94,28 +96,27 @@ public class Application {
         // Ratio
         JavaPairRDD<String, Double> valid = rdd
                 .filter(route -> route.payment_type == 1 && route.total_amount != 0)
+
                 .mapToPair(route -> new Tuple2<>(
                         route.tpep_dropoff_datetime.substring(5,7),
-                        route.tip_amount / (route.total_amount - route.tolls_amount)
-                ));
-                //.filter(stringDoubleTuple -> !Double.isNaN(stringDoubleTuple._2));
-        valid = valid.cache();
+                        new Tuple2<>(
+                                route.tip_amount / (route.total_amount - route.tolls_amount),
+                                1
+                        )
+                ))
 
-        Map<String, Double> sum_ratio_by_month = valid
-                .reduceByKey(Double::sum)
+                .reduceByKey((doubleIntegerTuple2, doubleIntegerTuple22) -> new Tuple2<>(
+                        Double.sum(doubleIntegerTuple2._1, doubleIntegerTuple22._1),
+                        Integer.sum(doubleIntegerTuple2._2, doubleIntegerTuple22._2)
+                ))
+
+                .mapValues(doubleIntegerTuple2 -> (double) doubleIntegerTuple2._1 / doubleIntegerTuple2._2);
+
+        Map<String, Double> ratio_by_month = valid
                 .collectAsMap();
 
-        for (String k: sum_ratio_by_month.keySet()){
-            System.out.println("------>key " + k +": "+sum_ratio_by_month.get(k));
-        }
-
-        Map<String, Integer> denominator = valid
-                .mapValues(row -> 1)
-                .reduceByKey(Integer::sum)
-                .collectAsMap();
-
-        for (String k: denominator.keySet()){
-            System.out.println("------>key " + k +": "+denominator.get(k));
+        for (String k: ratio_by_month.keySet()){
+            System.out.println("------>key " + k +": "+ratio_by_month.get(k));
         }
 
         //TODO
@@ -137,33 +138,93 @@ public class Application {
         base = base.cache();
         base.take(10).forEach(System.out::println);
 
-        JavaPairRDD<String, TaxiRoute> route_by_hour_pu = base
-                .mapToPair(routeTuple2 -> new Tuple2<>(
-                        routeTuple2._1 + "," + routeTuple2._2.PULocationID,
-                        routeTuple2._2
-                ));
-        route_by_hour_pu = route_by_hour_pu.cache();
-
-        Map<String, Integer> tot_by_hour = base
-                .mapValues(route -> 1)
+        //Query 2.1
+        // distribution over PULocation hour by hour
+        base.mapToPair(routeTuple2 -> new Tuple2<>(
+                        routeTuple2._1 //.replace('/', '-').replace(' ', '-')
+                                + "," + routeTuple2._2.PULocationID,
+                        1))
                 .reduceByKey(Integer::sum)
-                .collectAsMap();
+                .mapToPair(stringIntegerTuple2 -> {
+                    String[] keys = stringIntegerTuple2._1.split(",");
+
+                    return new Tuple2<String, Tuple2<Long, Integer>>(
+                            keys[0],
+                            new Tuple2<Long, Integer>(
+                                    Long.valueOf(keys[1]),
+                                    stringIntegerTuple2._2
+                            )
+                    );
+                })
+                .groupByKey()
+            .mapValues(tuples -> {
+            ArrayList<Double> result = new ArrayList<>();
+                for(int i = 0; i<265; i++){
+                    result.add(0d);
+                }
+
+                int n = 0;
+                Integer count;
+                for (Tuple2<Long, Integer> tuple : tuples) {
+                    count = tuple._2;
+
+                    result.add( tuple._1.intValue() -1, count.doubleValue());
+                    n += count;
+                }
+
+                for(int i = 0; i< result.size(); i ++){
+                    result.set(i, result.get(i)/n);
+                }
+
+                return result;
+        })
+        .take(10).forEach(System.out::println);
 
 
-        // Mean by hour
-        Map<String, Double> count_route_by_hour_pu = route_by_hour_pu
-                .mapToPair(routeTuple2 -> new Tuple2<>(
-                        routeTuple2._1.replace('/', '-').replace(' ', '-'),
-                        (double) 1 / tot_by_hour.get(routeTuple2._1.split(",")[0])
+        // 2.2 Average and stard deviation tip
+        Map<String, Double> mean_tip_by_hour = base
+                .mapValues(route -> new Tuple2<>(
+                        route.tip_amount,
+                        1)
+                )
+                .reduceByKey((doubleIntegerTuple2, doubleIntegerTuple22) -> new Tuple2<>(
+                        Double.sum(doubleIntegerTuple2._1, doubleIntegerTuple22._1),
+                        Integer.sum(doubleIntegerTuple2._2, doubleIntegerTuple22._2)
                 ))
-                .reduceByKey(Double::sum)
+                .mapValues(doubleIntegerTuple2 -> (double) doubleIntegerTuple2._1 / doubleIntegerTuple2._2)
                 .collectAsMap();
 
-
-        for (String k: count_route_by_hour_pu.keySet()){
-            System.out.printf("------>key:%s;mean-value: %f\n", k, count_route_by_hour_pu.get(k));
+        for (String k: mean_tip_by_hour.keySet()){
+            System.out.println("------>key " + k +": "+mean_tip_by_hour.get(k));
         }
 
+        //2.3
+        // Preferred payment type
+        base.mapToPair(routeTuple2 -> new Tuple2<>(
+                    routeTuple2._1 + ',' + routeTuple2._2.payment_type,
+                    1
+            ))
+            .reduceByKey(Integer::sum)
+            .mapToPair(stringIntegerTuple2 -> {
+                String[] keys  = stringIntegerTuple2._1.split(",");
+                return new Tuple2<>(
+                        keys[0],
+                        new Tuple2<Long, Integer>(
+                                Long.valueOf(keys[1]),
+                                stringIntegerTuple2._2
+                        )
+                );
+            })
+            .reduceByKey((stringIntegerTuple1, stringIntegerTuple2) -> {
+                if(stringIntegerTuple1._2 > stringIntegerTuple2._2){
+                    return stringIntegerTuple1;
+                }
+                else {
+                    return stringIntegerTuple2;
+                }
+            })
+            .mapValues(stringIntegerTuple2 -> stringIntegerTuple2._1)
+            .take(10).forEach(System.out::println);
 
 
         /*base.mapToPair(routeTuple2 -> new Tuple2<>(

@@ -15,6 +15,9 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.TreeSet;
 
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.mean;
+
 public class TLCMain {
 
     public static void main(String[] args) {
