@@ -52,5 +52,8 @@ I risultati saranno memorizzari su HDFS come `query1-results` e come `query2-res
 Il file HDFS dei risultati e' scaricato nella cartella `Results`. Viene aggregato mediante lo script `05-readoutput.sh`.
 Nella cartella `Report` e' stata aggiunta la relazione in cui e' presente il dettaglio delle scelte implementative.
 
+Ulteriori informazioni circa i tempi di processamento possono essere trovati nel file `times/out.csv`: 
+ogni riga del file indica in prima posizione la durata, in millisecondi, della prima query, 
+in seconda posizione la durata della seconda, in terza il numero di nodi spark coinvolti nel processamento (1 nodo master + 1 o 2 nodi worker).
 
 
