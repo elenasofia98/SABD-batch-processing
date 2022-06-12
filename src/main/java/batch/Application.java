@@ -33,7 +33,7 @@ public class Application {
         this.hdfs = "hdfs://"+ip+":"+port;
     }
 
-    private Dataset<Row> load_parquet(String[] paths) throws Exception {
+    public Dataset<Row> load_parquet(String[] paths) throws Exception {
         Dataset<Row> dataset = null;
         for(String path: paths) {
             Dataset<Row> temp = this.ss.read().parquet(this.hdfs+path);
@@ -62,10 +62,7 @@ public class Application {
                 dataset = dataset.drop(c);
         }
 
-        System.out.println("------> total " + dataset.count());
-        dataset = dataset.filter((FilterFunction<Row>) row -> ! row.anyNull());
-        System.out.println("------> not null " + dataset.count());
-
+        dataset = dataset.filter((FilterFunction<Row>) row -> !row.anyNull());
 
         dataset = dataset
                 .withColumn(
@@ -80,7 +77,6 @@ public class Application {
                         .and(col("tpep_dropoff_datetime").lt(lit("2022/03/01"))))
                 .filter(col("tpep_pickup_datetime").gt(lit("2021/11/31"))
                         .and(col("tpep_pickup_datetime").lt(lit("2022/03/01"))));
-        System.out.println("------> having right date " + dataset.count());
 
         dataset = dataset
                 .withColumn("payment_type"  , dataset.col("payment_type"  ).cast("long")  )
@@ -88,56 +84,52 @@ public class Application {
                 .withColumn("tolls_amount"  , dataset.col("tolls_amount"  ).cast("double"))
                 .withColumn("total_amount"  , dataset.col("total_amount"  ).cast("double"))
                 .withColumn("PULocationID"  , dataset.col("PULocationID"  ).cast("long")  );
-        System.out.println("------> after cast " + dataset.count());
+
         return dataset.as(Encoders.bean(TaxiRoute.class));
     }
 
 
+    public void saveHDFS(JavaRDD<String> rdd, String path){
+        rdd.saveAsTextFile(this.hdfs+'/'+path);
+    }
 
     public void query1(JavaRDD<TaxiRoute> rdd){
         // Query 1
         // Ratio
-        JavaPairRDD<String, Double> valid = rdd
+        JavaPairRDD<String, Tuple2<Double, Integer>> ratio_by_month = rdd
                 .filter(route -> route.payment_type == 1 && route.total_amount != 0)
-
                 .mapToPair(route -> new Tuple2<>(
-                        route.tpep_dropoff_datetime.substring(5,7),
+                        route.tpep_dropoff_datetime.substring(0,7).replace('/', '-'),
                         new Tuple2<>(
                                 route.tip_amount / (route.total_amount - route.tolls_amount),
                                 1
                         )
                 ))
 
-                .reduceByKey((doubleIntegerTuple2, doubleIntegerTuple22) -> new Tuple2<>(
-                        Double.sum(doubleIntegerTuple2._1, doubleIntegerTuple22._1),
-                        Integer.sum(doubleIntegerTuple2._2, doubleIntegerTuple22._2)
+                .reduceByKey((doubleIntegerTuple, doubleIntegerTuple2) -> new Tuple2<>(
+                        Double.sum(doubleIntegerTuple._1, doubleIntegerTuple2._1),
+                        Integer.sum(doubleIntegerTuple._2, doubleIntegerTuple2._2)
                 ))
 
-                .mapValues(doubleIntegerTuple2 -> (double) doubleIntegerTuple2._1 / doubleIntegerTuple2._2);
+                .mapValues(doubleIntegerTuple -> new Tuple2<>(
+                        doubleIntegerTuple._1 / doubleIntegerTuple._2,
+                        doubleIntegerTuple._2)
+                );
 
-        Map<String, Double> ratio_by_month = valid
-                .collectAsMap();
-
-        for (String k: ratio_by_month.keySet()){
-            System.out.println("------>key " + k +": "+ratio_by_month.get(k));
-        }
-
-        //TODO
-        // save to HDFS
-
-
+        this.saveHDFS(ratio_by_month.map(stringTuple2Tuple2 ->
+                stringTuple2Tuple2._1 + "," +
+                stringTuple2Tuple2._2._1 +  "," +
+                stringTuple2Tuple2._2._2), "ratio_by_month");
     }
 
     private JavaPairRDD<String, List<Double>> sub1query2(JavaPairRDD<String, TaxiRoute> base){
         return base
                 .mapToPair(routeTuple2 -> new Tuple2<>(
-                        routeTuple2._1 //.replace('/', '-').replace(' ', '-')
-                                + "," + routeTuple2._2.PULocationID,
+                        routeTuple2._1 + "," + routeTuple2._2.PULocationID,
                         1))
                 .reduceByKey(Integer::sum)
                 .mapToPair(stringIntegerTuple2 -> {
                     String[] keys = stringIntegerTuple2._1.split(",");
-
                     return new Tuple2<String, Tuple2<Long, Integer>>(
                             keys[0],
                             new Tuple2<Long, Integer>(
@@ -178,10 +170,7 @@ public class Application {
                         1)
                 );
 
-        tip_by_hour = tip_by_hour.cache();
-
-
-        JavaPairRDD<String, Tuple2<Double, Double>> mean_tip_by_hour = tip_by_hour
+        return tip_by_hour
                 .reduceByKey((doubleIntegerTuple, doubleIntegerTuple2) -> new Tuple3<>(
                         Double.sum(doubleIntegerTuple._1(), doubleIntegerTuple2._1()),
                         Double.sum(doubleIntegerTuple._2(), doubleIntegerTuple2._2()),
@@ -191,8 +180,6 @@ public class Application {
                         doubleIntegerTuple._2() / doubleIntegerTuple._3(),
                         Math.sqrt(  ((double) 1/doubleIntegerTuple._3()) * doubleIntegerTuple._1() - Math.pow( ((double)doubleIntegerTuple._2() / doubleIntegerTuple._3()), 2))
                         ));
-
-        return mean_tip_by_hour;
     }
 
 
@@ -234,28 +221,55 @@ public class Application {
             return segments.iterator();
         }));
         base = base.cache();
-        base.take(10).forEach(System.out::println);
 
         // 2.1
         // distribution over PULocation hour by hour
         JavaPairRDD<String, List<Double>> distribution = this.sub1query2(base);
-        distribution.take(1).forEach(System.out::println);
-
 
         // 2.2
         // Average and standard deviation tip
         JavaPairRDD<String, Tuple2<Double, Double>> tip = this.sub2query2(base);
-        tip.take(10).forEach(System.out::println);
-
 
         // 2.3
         // Preferred payment type
         JavaPairRDD<String, Long> payment_type = this.sub3query2(base);
-        payment_type.take(10).forEach(System.out::println);
 
 
+        //Save to HDFS
+        this.saveHDFS(
+                distribution.join(tip).join(payment_type)
+                        .map(stringTuple2Tuple2 -> {
+                                String key = stringTuple2Tuple2._1
+                                        .replace("/","-")
+                                        .replace(" ", "-");
 
+                                List<Double> distr = stringTuple2Tuple2._2._1._1;
 
+                                Double tip_averarage = stringTuple2Tuple2._2._1._2._1;
+                                Double tip_std = stringTuple2Tuple2._2._1._2._2;
+
+                                Long payment_tyoe = stringTuple2Tuple2._2._2;
+
+                                String sep = ",";
+                                StringBuilder sb = new StringBuilder();
+                                sb.append(key);
+                                sb.append(sep);
+                                for(double d: distr){
+                                    sb.append(d);
+                                    sb.append(sep);
+                                }
+
+                                sb.append(tip_averarage);
+                                sb.append(sep);
+                                sb.append(tip_std);
+                                sb.append(sep);
+
+                                sb.append(payment_tyoe);
+                                return sb.toString();
+
+                            }
+                        ),
+                "query2");
 
     }
 
