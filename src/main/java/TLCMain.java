@@ -1,10 +1,7 @@
 import batch.Application;
 import batch.ClusterConf;
 import batch.TaxiRoute;
-import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.sql.Dataset;
-import scala.Tuple2;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -74,7 +71,7 @@ public class TLCMain {
             System.out.println("---------->Duration in millis: " + (end - start));
             long duration2 = end - start;
 
-            TLCMain.writeTime("out.csv", duration1, duration2, 3);
+            TLCMain.writeTime("out.csv", duration1, duration2, 2);
 
 
             app.close();
