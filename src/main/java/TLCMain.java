@@ -12,7 +12,7 @@ import java.util.ArrayList;
 
 public class TLCMain {
     public static void writeTime(String path, long duration1, long duration2, int worker) throws IOException {
-        BufferedWriter out = new BufferedWriter(new FileWriter("./Results/"+path, true));
+        BufferedWriter out = new BufferedWriter(new FileWriter("./times/"+path, true));
         String sep = ",";
         out.write(duration1+sep+duration2+sep+worker+"\n");
 
