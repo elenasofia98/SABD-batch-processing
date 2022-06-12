@@ -6,10 +6,20 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
 import scala.Tuple2;
 
+import java.io.*;
 import java.util.ArrayList;
 
 
 public class TLCMain {
+    public static void writeTime(String path, long duration1, long duration2, int worker) throws IOException {
+        BufferedWriter out = new BufferedWriter(new FileWriter("./Results/"+path, true));
+        String sep = ",";
+        out.write(duration1+sep+duration2+sep+worker+"\n");
+
+        // Closing file connections
+        out.close();
+
+    }
 
     public static void main(String[] args) {
         String sparkIP = "spark";
@@ -51,6 +61,7 @@ public class TLCMain {
             app.query1(rdd);
             long end = System.currentTimeMillis();
             System.out.println("---------->Duration in millis: " + (end - start));
+            long duration1 = end - start;
 
 
             /*
@@ -61,6 +72,10 @@ public class TLCMain {
             app.query2(rdd);
             end = System.currentTimeMillis();
             System.out.println("---------->Duration in millis: " + (end - start));
+            long duration2 = end - start;
+
+            TLCMain.writeTime("out.csv", duration1, duration2, 3);
+
 
             app.close();
         } catch (Exception e) {

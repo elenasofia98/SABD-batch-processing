@@ -15,7 +15,7 @@ services:
     ports:
       - '8080:8080'
     volumes:
-      - ./target:/app
+      - ./:/app
   spark-worker-1:
     image: bitnami/spark
     environment:
