@@ -48,5 +48,9 @@ Per compliare eseguire `02-make.sh`. Verra' creata una cartella `target` che nel
 Una volta compilata l'applicazione, eseguire lo script `03-submit.sh` per sottometterla al master node Spark.
 I risultati saranno memorizzari su HDFS come `query1-results` e come `query2-results`.
 
+# Consegna dei risultati
+Il file HDFS dei risultati e' scaricato nella cartella `Results`. Viene aggregato mediante lo script `05-readoutput.sh`.
+Nella cartella `Report` e' stato aggiunta la relazione in cui e' presente il dettaglio delle scelte implementative.
+
 
 
