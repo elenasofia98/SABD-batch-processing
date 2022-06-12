@@ -71,7 +71,7 @@ public class TLCMain {
             System.out.println("---------->Duration in millis: " + (end - start));
             long duration2 = end - start;
 
-            TLCMain.writeTime("out.csv", duration1, duration2, 2);
+            TLCMain.writeTime("out.csv", duration1, duration2, 3);
 
 
             app.close();
