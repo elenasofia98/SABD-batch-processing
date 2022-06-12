@@ -131,7 +131,7 @@ public class Application {
         this.saveHDFS(ratio_by_month.map(stringTuple2Tuple2 ->
                 stringTuple2Tuple2._1 + "," +
                 stringTuple2Tuple2._2._1 +  "," +
-                stringTuple2Tuple2._2._2), "ratio_by_month");
+                stringTuple2Tuple2._2._2), "query1");
     }
 
     private JavaPairRDD<String, List<Double>> sub1query2(JavaPairRDD<String, TaxiRoute> base){
