@@ -54,7 +54,7 @@ public class Application {
     }
 
 
-    public Dataset<TaxiRoute> load(String[] paths, ArrayList<String> dimensions) throws Exception {
+    public JavaRDD<TaxiRoute> load(String[] paths, ArrayList<String> dimensions) throws Exception {
 
         Dataset<Row> dataset = this.load_parquet(paths);
         for(String c: dataset.columns()){
@@ -85,7 +85,19 @@ public class Application {
                 .withColumn("total_amount"  , dataset.col("total_amount"  ).cast("double"))
                 .withColumn("PULocationID"  , dataset.col("PULocationID"  ).cast("long")  );
 
-        return dataset.as(Encoders.bean(TaxiRoute.class));
+        dataset = dataset.cache();
+        // (double tipAmount, double totalAmount, double tollsAmount, long paymentType,
+        //                     String tpepDropoffDatetime, String tpepPickupDatetime, long PULocationID)
+        // tpep_pickup_datetime|tpep_dropoff_datetime|PULocationID|payment_type|tip_amount|tolls_amount|total_amount
+        return  dataset.toJavaRDD().map(row -> new TaxiRoute(
+                row.getDouble(4),
+                row.getDouble(6),
+                row.getDouble(5),
+                row.getLong(3),
+                row.getString(1),
+                row.getString(0),
+                row.getLong(2)
+        ));
     }
 
 
@@ -97,11 +109,11 @@ public class Application {
         // Query 1
         // Ratio
         JavaPairRDD<String, Tuple2<Double, Integer>> ratio_by_month = rdd
-                .filter(route -> route.payment_type == 1 && route.total_amount != 0)
+                .filter(route -> route.paymentType == 1 && route.totalAmount != 0)
                 .mapToPair(route -> new Tuple2<>(
-                        route.tpep_dropoff_datetime.substring(0,7).replace('/', '-'),
+                        route.tpepDropoffDatetime.substring(0,7).replace('/', '-'),
                         new Tuple2<>(
-                                route.tip_amount / (route.total_amount - route.tolls_amount),
+                                route.tipAmount / (route.totalAmount - route.tollsAmount),
                                 1
                         )
                 ))
@@ -165,8 +177,8 @@ public class Application {
     private JavaPairRDD<String, Tuple2<Double, Double>> sub2query2(JavaPairRDD<String, TaxiRoute> base){
         JavaPairRDD<String, Tuple3<Double, Double, Integer>> tip_by_hour = base
                 .mapValues(route -> new Tuple3<>(
-                        Math.pow(route.tip_amount, 2),
-                        route.tip_amount,
+                        Math.pow(route.tipAmount, 2),
+                        route.tipAmount,
                         1)
                 );
 
@@ -185,7 +197,7 @@ public class Application {
 
     private JavaPairRDD<String, Long> sub3query2(JavaPairRDD<String, TaxiRoute> base){
         return base.mapToPair(routeTuple2 -> new Tuple2<>(
-                        routeTuple2._1 + ',' + routeTuple2._2.payment_type,
+                        routeTuple2._1 + ',' + routeTuple2._2.paymentType,
                         1
                 ))
                 .reduceByKey(Integer::sum)

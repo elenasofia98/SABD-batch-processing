@@ -1,26 +1,25 @@
 package batch;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.LinkedList;
 
 public class TaxiRoute  implements Serializable {
     //public int passenger_count;
-    public double tip_amount;
-    public double total_amount;
-    public double tolls_amount;
-    public long payment_type;
-    public String tpep_dropoff_datetime;
+    public double tipAmount;
+    public double totalAmount;
+    public double tollsAmount;
+    public long paymentType;
+    public String tpepDropoffDatetime;
 
-    public String tpep_pickup_datetime;
+    public String tpepPickupDatetime;
     public long PULocationID;
 
-    public String getTpep_pickup_datetime() {
-        return tpep_pickup_datetime;
+    public String getTpepPickupDatetime() {
+        return tpepPickupDatetime;
     }
 
-    public void setTpep_pickup_datetime(String tpep_pickup_datetime) {
-        this.tpep_pickup_datetime = tpep_pickup_datetime;
+    public void setTpepPickupDatetime(String tpepPickupDatetime) {
+        this.tpepPickupDatetime = tpepPickupDatetime;
     }
 
     public long getPULocationID() {
@@ -33,16 +32,16 @@ public class TaxiRoute  implements Serializable {
 
     public TaxiRoute(){}
 
-    public TaxiRoute(double tip_amount, double total_amount, double tolls_amount, long payment_type,
-                     String tpep_dropoff_datetime, String tpep_pickup_datetime, long PULocationID) {
-        this.payment_type = payment_type;
+    public TaxiRoute(double tipAmount, double totalAmount, double tollsAmount, long paymentType,
+                     String tpepDropoffDatetime, String tpepPickupDatetime, long PULocationID) {
+        this.paymentType = paymentType;
 
-        this.tip_amount = tip_amount;
-        this.tolls_amount = tolls_amount;
-        this.total_amount = total_amount;
+        this.tipAmount = tipAmount;
+        this.tollsAmount = tollsAmount;
+        this.totalAmount = totalAmount;
 
-        this.tpep_dropoff_datetime = tpep_dropoff_datetime;
-        this.tpep_pickup_datetime = tpep_pickup_datetime;
+        this.tpepDropoffDatetime = tpepDropoffDatetime;
+        this.tpepPickupDatetime = tpepPickupDatetime;
 
         this.PULocationID = PULocationID;
     }
@@ -50,12 +49,12 @@ public class TaxiRoute  implements Serializable {
     @Override
     public String toString() {
         return "TaxiRoute{" +
-                "tip_amount=" + tip_amount +
-                ", total_amount=" + total_amount +
-                ", tolls_amount=" + tolls_amount +
-                ", payment_type=" + payment_type +
-                ", tpep_dropoff_datetime='" + tpep_dropoff_datetime + '\'' +
-                ", tpep_pickup_datetime='" + tpep_pickup_datetime + '\'' +
+                "tip_amount=" + tipAmount +
+                ", total_amount=" + totalAmount +
+                ", tolls_amount=" + tollsAmount +
+                ", payment_type=" + paymentType +
+                ", tpep_dropoff_datetime='" + tpepDropoffDatetime + '\'' +
+                ", tpep_pickup_datetime='" + tpepPickupDatetime + '\'' +
                 ", PULocationID=" + PULocationID +
                 '}';
     }
@@ -64,9 +63,9 @@ public class TaxiRoute  implements Serializable {
         LinkedList<String> hours =  new LinkedList<>();
         int i;
 
-        int start = Integer.parseInt((this.tpep_pickup_datetime.substring(11, 13)));
-        int end = Integer.parseInt(this.tpep_dropoff_datetime.substring(11, 13));
-        String date = this.tpep_pickup_datetime;
+        int start = Integer.parseInt((this.tpepPickupDatetime.substring(11, 13)));
+        int end = Integer.parseInt(this.tpepDropoffDatetime.substring(11, 13));
+        String date = this.tpepPickupDatetime;
 
         if(start > end){
             while (start < 24){
@@ -77,7 +76,7 @@ public class TaxiRoute  implements Serializable {
 
                 start +=1;
             }
-            date = tpep_dropoff_datetime;
+            date = tpepDropoffDatetime;
         }
 
         while (start <= end){
@@ -91,43 +90,43 @@ public class TaxiRoute  implements Serializable {
         return hours;
     }
 
-    public double getTip_amount() {
-        return tip_amount;
+    public double getTipAmount() {
+        return tipAmount;
     }
 
-    public void setTip_amount(double tip_amount) {
-        this.tip_amount = tip_amount;
+    public void setTipAmount(double tipAmount) {
+        this.tipAmount = tipAmount;
     }
 
-    public double getTotal_amount() {
-        return total_amount;
+    public double getTotalAmount() {
+        return totalAmount;
     }
 
-    public void setTotal_amount(double total_amount) {
-        this.total_amount = total_amount;
+    public void setTotalAmount(double totalAmount) {
+        this.totalAmount = totalAmount;
     }
 
-    public double getTolls_amount() {
-        return tolls_amount;
+    public double getTollsAmount() {
+        return tollsAmount;
     }
 
-    public void setTolls_amount(double tolls_amount) {
-        this.tolls_amount = tolls_amount;
+    public void setTollsAmount(double tollsAmount) {
+        this.tollsAmount = tollsAmount;
     }
 
-    public long getPayment_type() {
-        return payment_type;
+    public long getPaymentType() {
+        return paymentType;
     }
 
-    public void setPayment_type(long payment_type) {
-        this.payment_type = payment_type;
+    public void setPaymentType(long paymentType) {
+        this.paymentType = paymentType;
     }
 
-    public String getTpep_dropoff_datetime() {
-        return tpep_dropoff_datetime;
+    public String getTpepDropoffDatetime() {
+        return tpepDropoffDatetime;
     }
 
-    public void setTpep_dropoff_datetime(String date) {
-        this.tpep_dropoff_datetime = date;
+    public void setTpepDropoffDatetime(String date) {
+        this.tpepDropoffDatetime = date;
     }
 }

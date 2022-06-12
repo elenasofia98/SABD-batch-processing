@@ -38,12 +38,8 @@ public class TLCMain {
         };
 
         try {
-            Dataset<TaxiRoute> dataset = app.load(filenames, dimensions);
-            dataset = dataset.cache();
-            dataset.show();
-
-            JavaRDD<TaxiRoute> rdd = dataset.toJavaRDD();
-            rdd.cache();
+            JavaRDD<TaxiRoute> rdd = app.load(filenames, dimensions);
+            rdd = rdd.cache();
             rdd.take(10).forEach(System.out::println);
 
             /*
