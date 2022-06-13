@@ -47,7 +47,6 @@ public class TLCMain {
         try {
             JavaRDD<TaxiRoute> rdd = app.load(filenames, dimensions);
             rdd = rdd.cache();
-            rdd.take(10).forEach(System.out::println);
 
             /*
             * Per ogni mese solare, calcolare la percentuale media dell’importo della mancia rispetto al costo effettivo
@@ -71,7 +70,7 @@ public class TLCMain {
             System.out.println("---------->Duration in millis: " + (end - start));
             long duration2 = end - start;
 
-            TLCMain.writeTime("out.csv", duration1, duration2, 3);
+            TLCMain.writeTime("out-1.csv", duration1, duration2, 3);
 
 
             app.close();

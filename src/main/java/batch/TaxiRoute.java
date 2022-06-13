@@ -32,6 +32,12 @@ public class TaxiRoute  implements Serializable {
 
     public TaxiRoute(){}
 
+    public static TaxiRoute deserialize(String csvString){
+        String[] splitcsv = csvString.split(",");
+        return new TaxiRoute(Double.parseDouble(splitcsv[0]), Double.parseDouble(splitcsv[1]), Double.parseDouble(splitcsv[2]),
+                Long.parseLong(splitcsv[3]), splitcsv[4], splitcsv[5], Long.parseLong(splitcsv[6]));
+    }
+
     public TaxiRoute(double tipAmount, double totalAmount, double tollsAmount, long paymentType,
                      String tpepDropoffDatetime, String tpepPickupDatetime, long PULocationID) {
         this.paymentType = paymentType;

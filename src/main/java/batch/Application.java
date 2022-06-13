@@ -53,6 +53,77 @@ public class Application {
         return dataset;
     }
 
+    public void preprocessing(String[] paths, ArrayList<String> dimensions, String hdfsPath) throws Exception {
+
+        Dataset<Row> dataset = this.load_parquet(paths);
+        for(String c: dataset.columns()){
+            if(!dimensions.contains(c))
+                dataset = dataset.drop(c);
+        }
+
+        dataset = dataset.filter((FilterFunction<Row>) row -> !row.anyNull());
+
+        dataset = dataset
+                .withColumn(
+                        "tpep_dropoff_datetime",
+                        date_format(dataset.col("tpep_dropoff_datetime"), "yyyy/MM/dd hh:mm")
+                )
+                .withColumn(
+                        "tpep_pickup_datetime",
+                        date_format(dataset.col("tpep_pickup_datetime"), "yyyy/MM/dd hh:mm")
+                )
+                .filter(col("tpep_dropoff_datetime").gt(lit("2021/11/31"))
+                        .and(col("tpep_dropoff_datetime").lt(lit("2022/03/01"))))
+                .filter(col("tpep_pickup_datetime").gt(lit("2021/11/31"))
+                        .and(col("tpep_pickup_datetime").lt(lit("2022/03/01"))));
+
+        dataset = dataset
+                .withColumn("payment_type"  , dataset.col("payment_type"  ).cast("long")  )
+                .withColumn("tip_amount"    , dataset.col("tip_amount"    ).cast("double"))
+                .withColumn("tolls_amount"  , dataset.col("tolls_amount"  ).cast("double"))
+                .withColumn("total_amount"  , dataset.col("total_amount"  ).cast("double"))
+                .withColumn("PULocationID"  , dataset.col("PULocationID"  ).cast("long")  );
+
+        dataset = dataset.cache();
+        // (double tipAmount, double totalAmount, double tollsAmount, long paymentType,
+        //                     String tpepDropoffDatetime, String tpepPickupDatetime, long PULocationID)
+        // tpep_pickup_datetime|tpep_dropoff_datetime|PULocationID|payment_type|tip_amount|tolls_amount|total_amount
+        JavaRDD<TaxiRoute> rdd = dataset.toJavaRDD().map(row -> new TaxiRoute(
+                row.getDouble(4),
+                row.getDouble(6),
+                row.getDouble(5),
+                row.getLong(3),
+                row.getString(1),
+                row.getString(0),
+                row.getLong(2)
+        ));
+
+        saveHDFS(rdd.map(route -> {
+            String sep = ",";
+            StringBuilder sb = new StringBuilder();
+            sb.append(route.tipAmount);
+            sb.append(sep);
+            sb.append(route.totalAmount);
+            sb.append(sep);
+            sb.append(route.tollsAmount);
+            sb.append(sep);
+            sb.append(route.paymentType);
+            sb.append(sep);
+            sb.append(route.tpepDropoffDatetime);
+            sb.append(sep);
+            sb.append(route.tpepPickupDatetime);
+            sb.append(sep);
+            sb.append(route.PULocationID);
+            return sb.toString();
+        }), hdfsPath);
+
+    }
+
+    public JavaRDD<TaxiRoute> loadPreprocessed(String hdfsPath){
+        JavaRDD<String> rdd = this.ss.sparkContext().textFile(this.hdfs + "/" + hdfsPath, 2).toJavaRDD();
+        return rdd.map(TaxiRoute::deserialize);
+    }
+
 
     public JavaRDD<TaxiRoute> load(String[] paths, ArrayList<String> dimensions) throws Exception {
 
