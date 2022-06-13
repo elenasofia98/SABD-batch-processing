@@ -7,7 +7,7 @@ import java.io.*;
 import java.util.ArrayList;
 
 
-public class TLCMainDetachPreprocessing {
+public class TLCMain2 {
     public static void writeTime(String path, long durationpre, long duration1, long duration2, int worker) throws IOException {
         BufferedWriter out = new BufferedWriter(new FileWriter("./times/"+path, true));
         String sep = ",";
@@ -75,7 +75,7 @@ public class TLCMainDetachPreprocessing {
             System.out.println("---------->Duration in millis: " + (end - start));
             long duration2 = end - start;
 
-            TLCMainDetachPreprocessing.writeTime("out-2.csv", duration_pre, duration1, duration2, 3);
+            TLCMain2.writeTime("out-2.csv", duration_pre, duration1, duration2, 3);
 
 
             app.close();
