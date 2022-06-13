@@ -16,4 +16,5 @@ docker rm --force sabd-batch-processing_spark-worker-1_1
 docker rm --force sabd-batch-processing_spark_1
 docker rm --force datanode-1
 docker rm --force datanode-2
+docker rm --force datanode-3
 docker rm --force namenode

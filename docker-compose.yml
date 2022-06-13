@@ -90,5 +90,20 @@ services:
       SERVICE_PRECONDITION: "namenode:9870"
     env_file:
       - ./docker-hadoop-master/hadoop.env
+  datanode-3:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode-3
+    restart: always
+    volumes:
+      - ./hadoop/hadoop_datanode-3:/hadoop/dfs/data
+      - ./Results:/output
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - ./docker-hadoop-master/hadoop.env
+      
+      
+      
+      
 
 

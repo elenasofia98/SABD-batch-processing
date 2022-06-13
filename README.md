@@ -9,7 +9,7 @@ Nella configurazione attuale sono presenti:
 - un master per spark
 - due worker spark
 - un namenode HDFS
-- due datanode HDFS
+- tre datanode HDFS
 
 Tutti i volumi, i file di configurazione, le cartelle specificate in `docker-compose.yml` hanno mapping relativo alla cartella corrente.
 Nella cartella corrente creare una cartella contenente i file dei dati: la configurazione attuale prevede che tale cartella venga nominata `data` e contenenga i file `.parquet` che si desidera caricare su HDFS.
